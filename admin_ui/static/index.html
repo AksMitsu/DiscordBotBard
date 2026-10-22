@@ -1,0 +1,1399 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NBD Admin</title>
+<style>
+:root{
+  --r:12px;--gap:14px;color-scheme:dark;
+  font-family:Inter,system-ui,"Segoe UI",Roboto,sans-serif;font-size:14px;
+  --bg:#0e1014;--panel:#161a21;--panel2:#1e232c;--line:#2a313c;--text:#e7e9ee;--muted:#8a93a6;
+  --accent:#7c93ff;--accent2:#5b73e8;--ok:#3ecf8e;--warn:#f5b84b;--bad:#ef5b6b;--violet:#c084fc;
+  --input:#11141a;--shadow:0 12px 32px rgba(0,0,0,.38);
+}
+:root[data-theme=light]{
+  color-scheme:light;--bg:#f3f4f8;--panel:#fff;--panel2:#eef0f5;--line:#dde1e8;--text:#1b1f27;--muted:#667085;
+  --accent:#4f63e6;--accent2:#4054d6;--ok:#11a067;--warn:#b7791f;--bad:#d64550;--violet:#8b5cf6;
+  --input:#fff;--shadow:0 12px 32px rgba(20,30,60,.12);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme]){
+    color-scheme:light;--bg:#f3f4f8;--panel:#fff;--panel2:#eef0f5;--line:#dde1e8;--text:#1b1f27;--muted:#667085;
+    --accent:#4f63e6;--accent2:#4054d6;--ok:#11a067;--warn:#b7791f;--bad:#d64550;--violet:#8b5cf6;
+    --input:#fff;--shadow:0 12px 32px rgba(20,30,60,.12);
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text)}
+body{overflow:hidden}
+a{color:var(--accent)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer;transition:background .15s,border-color .15s;white-space:nowrap}
+button:hover:not(:disabled){border-color:var(--accent)}
+button.primary{background:var(--accent2);border-color:var(--accent2);color:#fff}
+button.primary:hover:not(:disabled){background:var(--accent);border-color:var(--accent)}
+button.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+button.danger:hover:not(:disabled){background:color-mix(in srgb,var(--bad) 14%,transparent);border-color:var(--bad)}
+button.ghost{background:none;border-color:transparent}
+button.sm{padding:3px 8px;font-size:12.5px}
+button:disabled{opacity:.5;cursor:default}
+button.loading{position:relative;color:transparent!important}
+button.loading::after{content:"";position:absolute;inset:0;margin:auto;width:14px;height:14px;border:2px solid var(--muted);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+input,select,textarea{background:var(--input);border:1px solid var(--line);border-radius:9px;padding:7px 10px;min-width:0}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+input[type=range]{padding:0;accent-color:var(--accent);border:none;background:none;box-shadow:none}
+input[type=checkbox]{accent-color:var(--accent)}
+input[type=color]{padding:2px;width:44px;height:34px}
+textarea{width:100%;resize:vertical}
+label.cb{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);cursor:pointer}
+label.cb.warn{color:var(--warn)}
+
+.shell{display:grid;grid-template-columns:260px 1fr;height:100%}
+.side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.brand{display:flex;gap:10px;align-items:center;padding:16px 16px 10px}
+.brand img{width:38px;height:38px;border-radius:50%;background:var(--panel2);flex:none}
+.brand b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand small{color:var(--muted);display:flex;align-items:center;gap:6px;font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--bad);display:inline-block;flex:none}
+.dot.on{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+nav{display:flex;flex-direction:column;gap:2px;padding:4px 10px}
+nav a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;color:var(--muted);text-decoration:none;cursor:pointer;user-select:none}
+nav a:hover{background:var(--panel2);color:var(--text)}
+nav a.active{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--text)}
+nav a .ic{width:20px;text-align:center}
+.side-h{padding:14px 18px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+#guildFilter{margin:0 12px 8px}
+#guilds{overflow:auto;padding:0 8px 8px;flex:1}
+.guild{display:flex;gap:10px;align-items:center;padding:7px 8px;border-radius:9px;cursor:pointer}
+.guild:hover{background:var(--panel2)}
+.guild.sel{background:var(--panel2);box-shadow:inset 3px 0 0 var(--accent)}
+.av{width:32px;height:32px;border-radius:50%;flex:none;background:var(--line);display:grid;place-items:center;font-weight:600;color:var(--muted);position:relative}
+.av img{width:100%;height:100%;border-radius:50%}
+.av.lg{width:42px;height:42px}
+.av.live::after{content:"";position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:var(--ok);border:2px solid var(--panel)}
+.gname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.gsub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side-foot{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--line)}
+.side-foot button{flex:1}
+
+.mainwrap{display:flex;flex-direction:column;min-width:0;min-height:0}
+.top{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+.top h1{font-size:17px;margin:0;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stats{display:flex;gap:16px;margin-left:auto;flex-wrap:wrap}
+.stat{font-size:12.5px;color:var(--muted);white-space:nowrap}.stat b{color:var(--text);font-weight:600;margin-left:4px}
+#banner{background:color-mix(in srgb,var(--warn) 13%,var(--panel));color:var(--warn);padding:8px 20px;border-bottom:1px solid var(--line);font-size:13px}
+main{overflow:auto;padding:20px;flex:1}
+.page{max-width:1500px;margin:0 auto}
+.grid2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:var(--gap);align-items:start}
+.col{display:flex;flex-direction:column;gap:var(--gap);min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.card h2{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;font-weight:600;display:flex;align-items:center;gap:8px;min-height:24px}
+.card h2 .sp{flex:1}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:120px}.fill{flex:1}
+.stack{display:flex;flex-direction:column;gap:8px}
+.muted{color:var(--muted)}.small{font-size:12.5px}
+.mt{margin-top:10px}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--gap);margin-bottom:var(--gap)}
+.tstat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.tstat span{color:var(--muted);font-size:12px}.tstat b{display:block;font-size:22px;margin-top:4px;font-variant-numeric:tabular-nums}
+.tstat.click{cursor:pointer}.tstat.click:hover{border-color:var(--accent)}
+.gcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:var(--gap)}
+.gcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
+.gcard.live{border-color:color-mix(in srgb,var(--ok) 50%,var(--line))}
+.gcard .head{display:flex;gap:10px;align-items:center;cursor:pointer}
+.gcard .now{font-weight:500;word-break:break-word}
+
+.np{font-weight:600;font-size:19px;margin:2px 0 4px;word-break:break-word}
+.np a{color:inherit;text-decoration:none}.np a:hover{text-decoration:underline}
+.bar{height:6px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent);width:0;transition:width .9s linear}
+.bar.live>i{width:100%;background:linear-gradient(90deg,var(--accent),var(--violet),var(--accent));background-size:200% 100%;animation:flow 3s linear infinite}
+@keyframes flow{to{background-position:-200% 0}}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);font-size:12.5px;cursor:pointer;margin:0 6px 6px 0;user-select:none}
+.chip:hover{border-color:var(--accent)}
+.chip i{font-style:normal;color:var(--muted)}.chip i:hover{color:var(--bad)}
+.pill{padding:2px 8px;border-radius:99px;font-size:11.5px;background:var(--panel2);color:var(--muted);white-space:nowrap}
+.pill.ok{color:var(--ok)}.pill.warn{color:var(--warn)}.pill.bad{color:var(--bad)}
+
+.list .item{display:flex;gap:8px;align-items:center;padding:6px;border-radius:8px}
+.list .item:hover{background:var(--panel2)}
+.item .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .n{width:26px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;flex:none}
+.item .acts{display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.item:hover .acts,.item:focus-within .acts{opacity:1}
+.item.dragging{opacity:.4}.item.over{box-shadow:inset 0 2px 0 var(--accent)}
+.handle{cursor:grab;color:var(--muted);user-select:none}
+.scroll{max-height:440px;overflow:auto}
+.vc{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:8px}
+.vc.here{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 6%,transparent)}
+.vc .people{display:flex;flex-direction:column;gap:2px;margin-top:6px;font-size:13px}
+
+.chat{height:340px;overflow:auto;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:6px}
+.chat.over{outline:2px dashed var(--accent)}
+.msg{padding:6px 8px;border-radius:8px;word-break:break-word;position:relative}
+.msg:hover{background:var(--panel2)}
+.msg .au{font-weight:600;color:var(--accent)}.msg.self .au{color:var(--ok)}
+.msg time{color:var(--muted);font-size:11px;margin-left:6px}
+.msg .body{white-space:pre-wrap;margin-top:2px}
+.msg .macts{position:absolute;top:3px;right:4px;display:none;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+.msg:hover .macts{display:flex}
+.msg .macts button{padding:1px 6px;font-size:12px;border:none;background:none}
+.msg .macts button:hover{background:var(--panel2)}
+.tag{color:var(--muted);font-size:11px;cursor:pointer;margin-left:4px}.tag:hover{color:var(--accent)}
+.badge{font-size:9.5px;padding:1px 5px;border-radius:4px;background:var(--accent2);color:#fff;margin-left:4px;vertical-align:middle}
+.replybar{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted);padding:6px 10px;border-left:3px solid var(--accent);background:var(--panel2);border-radius:6px;margin-top:8px}
+.replybar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+pre{background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px;overflow:auto;max-height:420px;margin:8px 0 0;font-size:12px;white-space:pre-wrap;word-break:break-word}
+.ev{display:flex;gap:10px;padding:7px 4px;border-bottom:1px solid var(--line);font-size:13px}
+.ev time{color:var(--muted);width:64px;flex:none;font-variant-numeric:tabular-nums}
+.k{flex:none;width:80px;font-size:11.5px;padding-top:1px}
+.k-command{color:var(--accent)}.k-admin,.k-say{color:var(--warn)}.k-track,.k-voice,.k-player{color:var(--ok)}.k-sound{color:var(--violet)}.k-guild{color:var(--bad)}
+
+.sbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.sound{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:12px;transition:transform .15s,border-color .15s}
+.sound:hover{border-color:var(--accent);transform:translateY(-1px)}
+.sound.flash{border-color:var(--ok)}
+.sound .play{width:100%;border:none;background:none;padding:18px 8px 12px;display:flex;flex-direction:column;gap:4px;align-items:center}
+.sound .em{font-size:32px;line-height:1}
+.sound b{font-weight:500;word-break:break-word;text-align:center}
+.sound .tacts{position:absolute;top:5px;right:5px;display:none;gap:2px}
+.sound:hover .tacts{display:flex}
+.sound .tacts button{padding:1px 6px;font-size:12px}
+.sound .kbd{position:absolute;top:6px;left:8px;font-size:10px;color:var(--muted)}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--muted);transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--accent);color:var(--text);background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.embed-prev{border-left:4px solid var(--accent);background:var(--panel2);border-radius:6px;padding:10px 12px;margin-top:10px;white-space:pre-wrap;word-break:break-word}
+.embed-prev b{display:block;margin-bottom:4px}.embed-prev img{max-width:100%;max-height:160px;border-radius:6px;margin-top:8px;display:block}
+.actgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.actgrid button{text-align:left;white-space:normal;padding:10px 12px}
+.actgrid button small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+.cmd{padding:6px 0;border-bottom:1px solid var(--line)}.cmd code{color:var(--accent)}
+.empty{color:var(--muted);padding:28px;text-align:center}
+.hide{display:none!important}
+
+#toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:70}
+.toast{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ok);padding:10px 14px;border-radius:10px;max-width:420px;white-space:pre-wrap;box-shadow:var(--shadow);animation:pop .2s ease}
+.toast.err{border-left-color:var(--bad)}.toast.info{border-left-color:var(--accent)}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--text);padding:0;width:min(460px,calc(100vw - 32px));box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form{padding:18px;display:flex;flex-direction:column;gap:12px}
+dialog h3{margin:0;font-size:16px}
+dialog .fld{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)}
+dialog .btns{display:flex;flex-direction:row-reverse;gap:8px;margin-top:4px}
+#palette{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;justify-content:center;align-items:flex-start;padding-top:12vh;z-index:60}
+#palette .box{width:min(560px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+#palette input{width:100%;border:none;border-bottom:1px solid var(--line);border-radius:0;padding:14px 16px;font-size:15px;background:var(--panel);box-shadow:none}
+#palette .res{max-height:50vh;overflow:auto;padding:6px}
+#palette .res div{padding:9px 12px;border-radius:8px;cursor:pointer;display:flex;gap:10px}
+#palette .res div.on{background:var(--panel2)}
+#palette .res small{margin-left:auto;color:var(--muted)}
+body.ro [data-full],body.guest [data-admin]{display:none!important}
+.mobile-only{display:none}
+.scrim{display:none}
+@media(max-width:1150px){.grid2{grid-template-columns:1fr}}
+@media(max-width:820px){
+  .shell{grid-template-columns:1fr}
+  .side{position:fixed;inset:0 auto 0 0;width:280px;z-index:40;transform:translateX(-100%);transition:transform .2s;box-shadow:var(--shadow)}
+  body.menu .side{transform:none}
+  body.menu .scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:30}
+  .mobile-only{display:inline-flex}
+  main{padding:12px}
+  .top{padding:10px 12px}
+  .stats{gap:10px;margin-left:0;width:100%}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <img id="avatar" alt="">
+      <div style="min-width:0"><b id="botName">NBD</b><small><span class="dot" id="dot"></span><span id="conn">подключение…</span></small></div>
+    </div>
+    <nav id="nav">
+      <a data-page="overview"><span class="ic">🏠</span>Обзор</a>
+      <a data-page="server"><span class="ic">🎛</span>Сервер</a>
+      <a data-page="playlists" data-full><span class="ic">📜</span>Плейлисты</a>
+      <a data-page="sounds" data-full><span class="ic">🔊</span>Саундборд</a>
+      <a data-page="fun" data-full><span class="ic">🎉</span>Приколы</a>
+      <a data-page="feed" data-full><span class="ic">📰</span>Лента</a>
+      <a data-page="admin" data-full data-admin><span class="ic">🛠</span>Админ</a>
+    </nav>
+    <div class="side-h">Серверы</div>
+    <input id="guildFilter" placeholder="Найти сервер…">
+    <div id="guilds"></div>
+    <div class="side-foot">
+      <button id="btnPalette" title="Палитра команд (Ctrl+K)">⌘ Команды</button>
+      <button id="btnTheme" title="Сменить тему">🌓</button>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <div class="mainwrap">
+    <header class="top">
+      <button class="mobile-only ghost" id="btnMenu">☰</button>
+      <h1 id="pageTitle">Обзор</h1>
+      <div class="stats">
+        <span class="stat">Пинг<b id="sPing">—</b></span>
+        <span class="stat">Аптайм<b id="sUp">—</b></span>
+        <span class="stat">Серверов<b id="sGuilds">—</b></span>
+        <span class="stat" data-full>Голос<b id="sVoice">—</b></span>
+        <span class="stat" data-full>RAM<b id="sMem">—</b></span>
+        <span class="stat">Доступ<b id="sRole">—</b></span>
+      </div>
+    </header>
+    <div id="banner" class="hide">👁 Режим просмотра: данные берутся из Discord напрямую. Музыка, саундборд, плейлисты и админ-действия появятся после установки админ-API на хост (ADMIN_MODE=remote).</div>
+
+    <main id="main">
+      <section class="page" id="page-overview">
+        <div class="tiles" id="ovTiles"></div>
+        <div class="gcards" id="ovCards"></div>
+      </section>
+
+      <section class="page hide" id="page-server">
+        <div id="srvEmpty" class="empty">Выберите сервер в списке слева</div>
+        <div id="srvView" class="grid2 hide">
+          <div class="col">
+            <div class="card" data-full id="npCard">
+              <h2>Сейчас играет <span class="sp"></span><span id="npChan" class="pill">—</span></h2>
+              <div class="np" id="npTitle">—</div>
+              <div class="muted small" id="npMeta">—</div>
+              <div class="bar mt" id="npBarWrap"><i id="npBar"></i></div>
+              <div class="controls">
+                <button class="primary" data-act="pause" id="btnPause">⏸ Пауза</button>
+                <button data-act="skip">⏭ Далее</button>
+                <button data-act="shuffle">🔀 Перемешать</button>
+                <select id="loopSel"><option value="off">➡ Без повтора</option><option value="track">🔂 Повтор трека</option><option value="queue">🔁 Повтор очереди</option></select>
+                <button class="danger" data-act="stop">⏹ Стоп и выйти</button>
+              </div>
+              <div class="row mt">
+                <span class="muted">🔊</span><input type="range" id="vol" min="0" max="200" step="5" class="grow">
+                <b id="volVal" style="width:46px;text-align:right">100%</b>
+              </div>
+            </div>
+
+            <div class="card" data-full>
+              <h2>Запустить</h2>
+              <div class="stack">
+                <div class="row">
+                  <span class="muted small" style="width:70px">Канал</span>
+                  <select id="targetChan" class="grow"></select>
+                </div>
+                <div class="row">
+                  <input id="playQuery" class="grow" placeholder="Название, ссылка YouTube или плейлист, ya:запрос, ссылка на радио">
+                  <select id="playSource" title="Источник"><option value="auto">Авто</option><option value="yandex">Яндекс</option><option value="radio">Радио URL</option></select>
+                  <select id="playPos"><option value="end">В конец</option><option value="next">Следующим</option></select>
+                  <button class="primary" id="btnPlay">▶ Играть</button>
+                </div>
+                <div class="row">
+                  <span class="muted small" style="width:70px">Плейлист</span>
+                  <select id="plSel" class="grow"></select>
+                  <label class="cb"><input type="checkbox" id="plShuffle"> перемешать</label>
+                  <button id="btnPlayPl">▶ Запустить</button>
+                </div>
+                <div><div class="muted small" style="margin-bottom:6px">Радио</div><div id="radios"></div></div>
+                <label class="cb"><input type="checkbox" id="announce"> писать «Сейчас играет» в выбранный текстовый канал</label>
+              </div>
+            </div>
+
+            <div class="card" data-full>
+              <h2>Очередь <span class="pill" id="qInfo">0</span><span class="sp"></span>
+                <button class="sm" id="btnSaveQueue">💾 В плейлист</button><button class="sm danger" id="btnClearQ">Очистить</button></h2>
+              <div class="list scroll" id="queue"></div>
+              <div class="muted small mt">Перетаскивайте треки за ⠿, чтобы поменять порядок.</div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="card" id="guildInfo"></div>
+            <div class="card">
+              <h2>Голосовые каналы</h2>
+              <div id="voiceNote" class="muted small hide" style="margin-bottom:8px">В режиме просмотра видны только бот и владелец: остальных участников Discord сообщает лишь через соединение бота.</div>
+              <div id="voiceList"></div>
+            </div>
+            <div class="card">
+              <h2>Чат от имени бота <span class="sp"></span><button class="sm ghost" id="btnChatRefresh" title="Обновить">⟳</button></h2>
+              <div class="row" style="margin-bottom:8px"><select id="chatChan" class="grow"></select></div>
+              <div class="chat" id="chat"></div>
+              <div class="replybar hide" id="replyBar"><span id="replyText"></span><button class="sm ghost" id="replyCancel">✕</button></div>
+              <div class="row mt">
+                <input id="chatText" class="grow" maxlength="2000" placeholder="Сообщение от имени бота…  (Enter — отправить)">
+                <label class="sm" title="Отправить файл или гифку" style="cursor:pointer;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel2)">📎<input type="file" id="chatFile" accept="image/*,video/mp4,video/webm,video/quicktime,.gif" hidden></label>
+                <button class="primary" id="btnSay">Отправить</button>
+              </div>
+              <div class="row mt">
+                <input id="gifUrl" class="grow" placeholder="🎞 Ссылка на GIF (Tenor, Giphy, прямая .gif)">
+                <button id="gifSend">GIF</button><button id="gifFav" title="В избранное">⭐</button>
+              </div>
+              <img id="gifPreview" class="hide" alt="" style="max-height:120px;border-radius:8px;margin-top:8px">
+              <div id="gifFavs" class="mt"></div>
+              <div class="row small" style="margin-top:4px">
+                <span class="muted">Быстро:</span>
+                <span class="chip" data-quick="d6">🎲 d6</span><span class="chip" data-quick="d20">🎲 d20</span>
+                <span class="chip" data-quick="coin">🪙 монетка</span><span class="chip" data-quick="ball">🎱 шар</span>
+                <span class="fill"></span>
+                <select id="chatFx" title="Эффект текста"><option value="">Без эффекта</option><option value="mock">сПоНчБоБ</option><option value="caps">КАПС</option><option value="rev">наоборот</option><option value="spaced">р а з р я д к а</option><option value="clap">👏 хлопки</option></select>
+              </div>
+              <label class="cb warn mt"><input type="checkbox" id="chatMass"> ⚠ разрешить @everyone, @here и роли (только для следующей отправки)</label>
+              <div class="row small mt" data-full data-admin>
+                <span class="muted">Модерация:</span>
+                <span class="chip" data-tool="purge">🧹 Очистить сообщения</span>
+                <span class="chip" data-tool="slowmode">🐢 Слоумод</span>
+                <span class="chip" data-tool="nick">✏ Ник бота</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page hide" id="page-playlists">
+        <div class="grid2">
+          <div class="card">
+            <h2>Мои плейлисты</h2>
+            <div class="row" style="margin-bottom:10px">
+              <input id="newPl" class="grow" placeholder="Название нового плейлиста">
+              <button class="primary" id="btnNewPl">Создать</button>
+            </div>
+            <div class="list" id="plList"></div>
+          </div>
+          <div class="card" id="plDetail"><div class="empty">Выберите плейлист</div></div>
+        </div>
+      </section>
+
+      <section class="page hide" id="page-sounds">
+        <div class="card" style="margin-bottom:var(--gap)">
+          <div class="row">
+            <span class="muted small">Сервер</span><b id="sbGuild">не выбран</b>
+            <select id="sbChan" title="Голосовой канал"></select>
+            <span class="muted small">🔊</span><input type="range" id="sbVol" min="10" max="200" step="10" value="100" title="Общая громкость звуков">
+            <label class="cb"><input type="checkbox" id="sbLeave"> зайти, сыграть и выйти</label>
+            <input id="sbSearch" placeholder="Поиск звука…" style="width:160px">
+            <span class="fill"></span>
+            <button id="sbRandom">🎲 Случайный</button><button class="danger" id="sbStop">⏹ Заглушить</button>
+          </div>
+          <div class="muted small mt">Звук накладывается поверх музыки, не останавливая её. Клавиши 1–9 запускают первые девять звуков.</div>
+        </div>
+        <div class="card" style="margin-bottom:var(--gap)"><div class="sbgrid" id="sbGrid"></div></div>
+        <div class="card">
+          <h2>Загрузить звуки на хост</h2>
+          <div class="drop" id="drop">Перетащите аудиофайлы сюда или <label style="color:var(--accent);cursor:pointer">выберите<input type="file" id="sbFile" accept="audio/*,.mp3,.wav,.ogg,.opus,.m4a,.aac,.flac,.webm" multiple hidden></label></div>
+          <div class="row mt">
+            <input id="sbName" class="grow" placeholder="Название (для одного файла; иначе имя файла)">
+            <input id="sbEmoji" placeholder="Эмодзи" style="width:90px" maxlength="8">
+            <span class="muted small">громкость</span><input type="number" id="sbDefVol" value="100" min="0" max="200" style="width:80px">
+          </div>
+          <div class="muted small mt" id="sbUpInfo">Форматы: mp3, wav, ogg, opus, m4a, aac, flac, webm. Файлы хранятся на хосте в data/sounds.</div>
+        </div>
+      </section>
+
+      <section class="page hide" id="page-fun">
+        <div class="card" style="margin-bottom:var(--gap)">
+          <div class="row">
+            <span class="muted small">Сервер</span><b id="funGuild">не выбран</b>
+            <span class="muted small">Канал</span><select id="funChan"></select>
+            <span class="fill"></span>
+            <label class="cb warn"><input type="checkbox" id="funMass"> ⚠ разрешить @everyone и роли</label>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="col">
+            <div class="card">
+              <h2>Объявление (embed)</h2>
+              <div class="stack">
+                <input id="emTitle" placeholder="Заголовок">
+                <textarea id="emText" rows="4" placeholder="Текст (поддерживается markdown Discord)"></textarea>
+                <div class="row"><input type="color" id="emColor" value="#7c93ff"><input id="emImage" class="grow" placeholder="Ссылка на картинку (необязательно)"><button class="primary" id="emSend">Отправить</button></div>
+              </div>
+              <div class="embed-prev" id="emPrev"></div>
+            </div>
+            <div class="card">
+              <h2>Опрос</h2>
+              <div class="stack">
+                <input id="pollQ" placeholder="Вопрос">
+                <textarea id="pollOpts" rows="4" placeholder="Варианты ответа — каждый с новой строки (2–10)"></textarea>
+                <div class="row">
+                  <span class="muted small">часов</span><input type="number" id="pollH" value="24" min="1" max="168" style="width:80px">
+                  <label class="cb"><input type="checkbox" id="pollMulti"> несколько ответов</label>
+                  <span class="fill"></span><button class="primary" id="pollSend">Создать опрос</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col">
+            <div class="card">
+              <h2>Бот «печатает»</h2>
+              <textarea id="twText" rows="3" placeholder="Текст для печатной машинки"></textarea>
+              <div class="row mt">
+                <button id="twTyping">⌨ «Печатает…» 8 с</button>
+                <span class="fill"></span>
+                <button class="primary" id="twGo">Печатная машинка</button>
+              </div>
+              <div class="muted small mt">Печатная машинка отправляет сообщение и дописывает его по словам.</div>
+            </div>
+            <div class="card">
+              <h2>Отложенное сообщение</h2>
+              <textarea id="schText" rows="2" placeholder="Текст"></textarea>
+              <div class="row mt">
+                <span class="muted small">через</span><input type="number" id="schN" value="1" min="1" style="width:80px">
+                <select id="schU"><option value="1">сек</option><option value="60" selected>мин</option></select>
+                <span class="fill"></span><button class="primary" id="schGo">Запланировать</button>
+              </div>
+              <div id="schList" class="list mt"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page hide" id="page-feed">
+        <div class="card">
+          <div class="row" style="margin-bottom:10px">
+            <select id="feedKind"><option value="">Все события</option><option value="command">Команды</option><option value="track">Треки</option><option value="voice">Голос</option><option value="sound">Звуки</option><option value="say">Чат</option><option value="admin">Админ</option><option value="guild">Серверы</option></select>
+            <select id="feedGuild"><option value="">Все серверы</option></select>
+            <input id="feedSearch" class="grow" placeholder="Поиск по событиям…">
+          </div>
+          <div id="feed"></div>
+        </div>
+      </section>
+
+      <section class="page hide" id="page-admin">
+        <div class="grid2">
+          <div class="col">
+            <div class="card">
+              <h2>Действия</h2>
+              <div class="actgrid" id="adminActions"></div>
+              <pre id="adminOut" class="hide"></pre>
+            </div>
+            <div class="card">
+              <h2>Статус бота в Discord</h2>
+              <div class="row">
+                <input id="presText" class="grow" placeholder="Текст статуса (пусто — убрать)">
+                <select id="presType"><option value="playing">Играет в</option><option value="listening">Слушает</option><option value="watching">Смотрит</option><option value="competing">Соревнуется</option></select>
+                <select id="presStatus"><option value="online">🟢 online</option><option value="idle">🌙 idle</option><option value="dnd">⛔ dnd</option><option value="invisible">⚪ invisible</option></select>
+                <button id="btnPres">Применить</button>
+              </div>
+              <div class="row mt">
+                <input id="testQuery" class="grow" placeholder="Проверить получение трека через yt-dlp">
+                <button id="btnTest">Проверить</button>
+              </div>
+            </div>
+            <div class="card">
+              <h2>Ошибки <span class="pill" id="errCount">0</span><span class="sp"></span><button class="sm ghost" id="btnErrRefresh">⟳</button></h2>
+              <div id="errors" class="scroll"></div>
+            </div>
+          </div>
+          <div class="col">
+            <div class="card">
+              <h2>bot.log <span class="sp"></span>
+                <label class="cb"><input type="checkbox" id="logAuto"> авто</label>
+                <button class="sm ghost" id="btnLogs">⟳</button></h2>
+              <div class="row"><select id="logLevel"><option value="">Все уровни</option><option value="WARNING">WARNING+</option><option value="ERROR">ERROR</option></select><input id="logFilter" class="grow" placeholder="Фильтр строк…"></div>
+              <pre id="logs">Нажмите ⟳</pre>
+            </div>
+            <div class="card">
+              <h2>Каталог команд</h2>
+              <input id="cmdFilter" placeholder="Фильтр…" style="width:100%;margin-bottom:8px">
+              <div id="cmds" class="scroll"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<dialog id="dlg"></dialog>
+<div id="palette" class="hide"><div class="box"><input id="palInput" placeholder="Команда, страница или сервер…"><div class="res" id="palRes"></div></div></div>
+<div id="toasts"></div>
+
+<script>
+'use strict';
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDur = s => { s = Math.floor(s || 0); if(!s) return '—'; const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60; return h ? `${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}` : `${m}:${String(x).padStart(2,'0')}`; };
+const fmtUp = s => { const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60); return (d ? d+'д ' : '') + (h || d ? h+'ч ' : '') + m+'м'; };
+const fmtTime = t => new Date(t*1000).toLocaleTimeString('ru-RU');
+const fmtDate = t => new Date(t*1000).toLocaleDateString('ru-RU');
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const isUrl = u => /^https?:\/\//i.test(u || '');
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('nbd.'+k); return v === null ? d : JSON.parse(v); }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem('nbd.'+k, JSON.stringify(v)); }catch{} },
+};
+
+const PAGES = {overview:'Обзор', server:'Сервер', playlists:'Плейлисты', sounds:'Саундборд', fun:'Приколы', feed:'Лента событий', admin:'Администрирование'};
+const S = {
+  snap:null, snapAt:0, gid:store.get('gid', null), detail:null, page:'overview', me:{who:'', role:'admin'},
+  playlists:[], radios:[], sounds:[], events:[], plSel:null, replyTo:null, lastMsgSig:'', chatTimer:null, cmd:null, logTimer:null,
+};
+const isRO = () => S.snap?.overview?.mode === 'readonly';
+const curGuild = () => S.snap?.guilds.find(g => g.id == S.gid);
+const trackTitle = t => (t.type === 'radio' && !t.title.startsWith('📻') ? '📻 ' : '') + t.title;
+
+let lastToast = '', lastToastAt = 0;
+function toast(text, type='ok'){
+  if(text === lastToast && Date.now() - lastToastAt < 4000) return;
+  lastToast = text; lastToastAt = Date.now();
+  const d = document.createElement('div');
+  d.className = 'toast ' + type; d.textContent = text;
+  $('#toasts').append(d);
+  setTimeout(() => d.remove(), type === 'err' ? 7000 : 3500);
+}
+
+async function api(method, path, body, {quiet=false}={}){
+  const opts = {method};
+  if(body instanceof FormData) opts.body = body;
+  else if(body != null){ opts.headers = {'Content-Type':'application/json'}; opts.body = JSON.stringify(body); }
+  let r;
+  try{ r = await fetch('/api'+path, opts); }
+  catch(e){ if(!quiet) toast('Нет связи с локальным сервером панели', 'err'); throw e; }
+  let data = {};
+  try{ data = await r.json(); }catch{}
+  if(!r.ok){
+    const msg = data.error || ('Ошибка '+r.status);
+    if(!quiet) toast(msg, 'err');
+    const err = new Error(msg); err.status = r.status; throw err;
+  }
+  return data;
+}
+function busy(btn, on){ if(btn){ btn.disabled = on; btn.classList.toggle('loading', on); } }
+async function act(path, body, {ok, btn}={}){
+  busy(btn, true);
+  try{
+    const d = await api('POST', path, body);
+    if(ok) toast(typeof ok === 'function' ? ok(d) : ok);
+    if(d.player) applyPlayer(d.player);
+    return d;
+  }catch{ return null; }
+  finally{ busy(btn, false); }
+}
+
+function modal({title, text='', fields=[], ok='OK', cancel='Отмена', danger=false}){
+  return new Promise(resolve => {
+    const d = $('#dlg');
+    if(d.open) d.close();
+    const input = (f) => {
+      const v = f.value ?? '';
+      const attrs = `name="${esc(f.name)}" ${f.required ? 'required' : ''} placeholder="${esc(f.placeholder || '')}"`;
+      if(f.type === 'checkbox') return `<label class="cb" style="color:var(--text)"><input type="checkbox" name="${esc(f.name)}" ${v ? 'checked' : ''}> ${esc(f.label)}</label>`;
+      let el;
+      if(f.type === 'textarea') el = `<textarea ${attrs} rows="${f.rows || 4}">${esc(v)}</textarea>`;
+      else if(f.type === 'select') el = `<select name="${esc(f.name)}">${f.options.map(([val, l]) => `<option value="${esc(val)}" ${String(val) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+      else el = `<input ${attrs} type="${f.type || 'text'}" value="${esc(v)}" ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''} ${f.maxlength ? `maxlength="${f.maxlength}"` : ''}>`;
+      return `<label class="fld">${esc(f.label || '')}${el}</label>`;
+    };
+    d.innerHTML = `<form method="dialog"><h3>${esc(title)}</h3>${text ? `<div class="muted" style="white-space:pre-wrap">${esc(text)}</div>` : ''}${fields.map(input).join('')}
+      <div class="btns"><button value="ok" class="${danger ? 'danger' : 'primary'}">${esc(ok)}</button>${cancel ? `<button value="cancel" formnovalidate>${esc(cancel)}</button>` : ''}</div></form>`;
+    const form = $('form', d);
+    let result = fields.length ? null : false;
+    form.addEventListener('submit', e => {
+      if(e.submitter?.value !== 'ok') return;
+      if(!fields.length){ result = true; return; }
+      result = {};
+      for(const f of fields){
+        const el = form.elements[f.name];
+        result[f.name] = f.type === 'checkbox' ? el.checked : f.type === 'number' ? Number(el.value) : el.value;
+      }
+    });
+    d.addEventListener('close', () => resolve(result), {once:true});
+    d.showModal();
+    (form.querySelector('input:not([type=checkbox]),textarea,select') || form.querySelector('.btns button'))?.focus();
+  });
+}
+const confirmBox = (text, o={}) => modal({title:o.title || 'Подтвердите действие', text, ok:o.ok || 'Да', danger:o.danger});
+
+function applyTheme(t){ if(t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
+function toggleTheme(){
+  const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  const next = cur === 'light' ? 'dark' : 'light';
+  store.set('theme', next); applyTheme(next);
+}
+applyTheme(store.get('theme', null));
+$('#btnTheme').onclick = toggleTheme;
+
+function pageAllowed(p){
+  if(!PAGES[p]) return false;
+  if(isRO()) return p === 'overview' || p === 'server';
+  if(p === 'admin' && S.me.role !== 'admin') return false;
+  return true;
+}
+function setTitle(){
+  const g = curGuild();
+  $('#pageTitle').textContent = PAGES[S.page] + (S.page === 'server' && g ? ' · ' + g.name : '');
+}
+const currentHash = () => S.page === 'server' && S.gid ? 'server/' + S.gid : S.page;
+function go(target){
+  let [page, arg] = String(target || '').split('/');
+  if(page === 'server' && arg) setGuild(arg);
+  if(!pageAllowed(page)) page = 'overview';
+  S.page = page;
+  store.set('page', page);
+  if(location.hash.slice(1) !== currentHash()) history.replaceState(null, '', '#' + currentHash());
+  $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.page === page));
+  $$('.page').forEach(s => s.classList.toggle('hide', s.id !== 'page-' + page));
+  document.body.classList.remove('menu');
+  setTitle();
+  clearInterval(S.logTimer);
+  if(page === 'overview' && S.snap) renderOverview();
+  if(page === 'server'){ renderServer(); loadDetail(); loadChat(true); }
+  if(page === 'playlists') loadPlaylists();
+  if(page === 'sounds'){ ensureDetail(); loadSounds(); }
+  if(page === 'fun'){ ensureDetail(); loadScheduled(); renderEmbedPreview(); }
+  if(page === 'feed') renderFeed();
+  if(page === 'admin'){ loadCommands(); loadErrors(); if($('#logAuto').checked) startLogAuto(); }
+}
+$('#nav').onclick = e => { const a = e.target.closest('[data-page]'); if(a) go(a.dataset.page); };
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if(h !== currentHash()) go(h); });
+$('#btnMenu').onclick = () => document.body.classList.toggle('menu');
+$('#scrim').onclick = () => document.body.classList.remove('menu');
+
+let ws, retry = 0;
+function connect(){
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+  ws.onopen = () => { retry = 0; setConn(true); };
+  ws.onclose = () => { setConn(false); setTimeout(connect, Math.min(1000 * 2 ** retry++, 15000)); };
+  ws.onmessage = e => {
+    let m; try{ m = JSON.parse(e.data); }catch{ return; }
+    if(m.type === 'snapshot') onSnapshot(m.data);
+    else if(m.type === 'events'){ S.events = m.data; if(S.page === 'feed') renderFeed(); }
+    else if(m.type === 'event'){
+      S.events.push(m.data); if(S.events.length > 300) S.events.shift();
+      if(S.page === 'feed') renderFeed();
+      if(m.data.kind === 'guild') toast(m.data.text, 'info');
+    }
+  };
+}
+function setConn(ok){
+  $('#dot').classList.toggle('on', ok);
+  $('#conn').textContent = ok ? (isRO() ? 'режим просмотра' : 'бот на связи') : 'нет связи с ботом';
+}
+function onSnapshot(data){
+  S.snap = data; S.snapAt = Date.now();
+  if(!curGuild() && data.guilds.length){
+    const live = data.guilds.find(g => g.player.connected) || data.guilds[0];
+    setGuild(live.id);
+    if(['sounds', 'fun'].includes(S.page)) ensureDetail();
+  }
+  document.body.classList.toggle('ro', isRO());
+  $('#banner').classList.toggle('hide', !isRO());
+  setConn(true);
+  if(!pageAllowed(S.page)) go('overview');
+  renderTop(); renderGuildList(); fillFeedGuilds();
+  if(S.page === 'overview') renderOverview();
+  if(S.page === 'server'){ renderServer(); }
+}
+function renderTop(){
+  const o = S.snap.overview;
+  $('#botName').textContent = o.user || 'NBD';
+  if(o.avatar && $('#avatar').getAttribute('src') !== o.avatar) $('#avatar').src = o.avatar;
+  $('#sPing').textContent = o.ping_ms != null ? o.ping_ms + ' мс' : '—';
+  $('#sUp').textContent = o.uptime != null ? fmtUp(o.uptime) : '—';
+  $('#sGuilds').textContent = o.guilds;
+  $('#sVoice').textContent = `${o.voice_connections} · ▶ ${o.playing}`;
+  $('#sMem').textContent = o.memory_mb != null ? o.memory_mb + ' МБ' : '—';
+  $('#sRole').textContent = isRO() ? 'просмотр' : ({admin:'полный', guest:'гость'}[S.me.role] || S.me.role) + (S.me.who ? ' · ' + S.me.who : '');
+}
+function guildAvatar(g, cls=''){
+  const live = g.player.connected ? ' live' : '';
+  return `<div class="av ${cls}${live}">${g.icon ? `<img src="${esc(g.icon)}" alt="">` : esc((g.name || '?')[0])}</div>`;
+}
+function renderGuildList(){
+  const f = $('#guildFilter').value.trim().toLowerCase();
+  const list = S.snap.guilds.filter(g => !f || g.name.toLowerCase().includes(f))
+    .sort((a, b) => (b.player.connected - a.player.connected) || a.name.localeCompare(b.name));
+  $('#guilds').innerHTML = list.map(g => {
+    const p = g.player;
+    const sub = p.connected ? `🔊 ${esc(p.channel_name || '')}${p.current ? ' · ' + (p.paused ? '⏸ ' : '▶ ') + esc(p.current.title) : ''}` : `${g.members ?? '?'} участников`;
+    return `<div class="guild ${g.id == S.gid ? 'sel' : ''}" data-gid="${esc(g.id)}">${guildAvatar(g)}<div style="min-width:0"><div class="gname">${esc(g.name)}</div><div class="gsub">${sub}</div></div></div>`;
+  }).join('') || '<div class="empty small">Ничего не найдено</div>';
+}
+$('#guildFilter').oninput = () => S.snap && renderGuildList();
+$('#guilds').onclick = e => { const el = e.target.closest('[data-gid]'); if(el) selectGuild(el.dataset.gid); };
+
+function setGuild(gid){
+  if(S.gid == gid) return;
+  S.gid = gid; store.set('gid', gid);
+  S.detail = null; S.replyTo = null; S.lastMsgSig = '';
+  $('#chat').innerHTML = ''; $('#chat').dataset.init = '';
+  $('#voiceList').innerHTML = '<div class="muted">загрузка…</div>';
+  $('#queue').dataset.sig = '';
+  renderReply();
+  if(S.snap) renderGuildList();
+}
+function selectGuild(gid){
+  setGuild(gid);
+  go('server');
+}
+
+function renderOverview(){
+  const o = S.snap.overview, gs = S.snap.guilds;
+  const tiles = [
+    ['Серверов', o.guilds, ''],
+    ['В голосовых', isRO() ? gs.filter(g => g.player.connected).length : o.voice_connections, ''],
+    ['Сейчас играет', isRO() ? '—' : o.playing, ''],
+    ['Аптайм', o.uptime != null ? fmtUp(o.uptime) : '—', ''],
+    ['Ошибок', isRO() ? '—' : o.errors, isRO() ? '' : 'admin'],
+    ['Память', o.memory_mb != null ? o.memory_mb + ' МБ' : '—', ''],
+  ];
+  $('#ovTiles').innerHTML = tiles.map(([l, v, link]) => `<div class="tstat ${link ? 'click' : ''}" ${link ? `data-go="${link}"` : ''}><span>${l}</span><b>${esc(v)}</b></div>`).join('');
+  const sorted = gs.slice().sort((a, b) => (b.player.connected - a.player.connected) || ((b.members || 0) - (a.members || 0)));
+  $('#ovCards').innerHTML = sorted.map(g => {
+    const p = g.player, c = p.current, gid = esc(g.id);
+    let body;
+    if(p.connected){
+      body = `<div class="row small"><span class="pill ok">🔊 ${esc(p.channel_name || '')}</span>${p.queue_len ? `<span class="pill">в очереди ${p.queue_len}</span>` : ''}${p.paused ? '<span class="pill warn">пауза</span>' : ''}</div>
+        <div class="now">${c ? (c.type === 'radio' ? '' : '🎵 ') + esc(trackTitle(c)) : '<span class="muted">Ничего не играет</span>'}</div>
+        <div class="row">
+          <span data-full class="row">${c ? `<button class="sm" data-ov="${p.paused ? 'resume' : 'pause'}" data-gid="${gid}">${p.paused ? '▶' : '⏸'}</button><button class="sm" data-ov="skip" data-gid="${gid}">⏭</button>` : ''}
+          <button class="sm danger" data-ov="stop" data-gid="${gid}">⏹ Выйти</button></span>
+          <span class="fill"></span><button class="sm primary" data-open="${gid}">Открыть</button>
+        </div>`;
+    } else {
+      body = `<div class="muted small">Бот не в голосовом канале</div><div class="row"><span class="fill"></span><button class="sm" data-open="${gid}">Открыть</button></div>`;
+    }
+    return `<div class="gcard ${p.connected ? 'live' : ''}"><div class="head" data-open="${gid}">${guildAvatar(g, 'lg')}<div style="min-width:0"><div class="gname">${esc(g.name)}</div><div class="gsub">${g.members ?? '?'} участников</div></div></div>${body}</div>`;
+  }).join('') || '<div class="empty">Бот не добавлен ни на один сервер</div>';
+}
+$('#page-overview').onclick = async e => {
+  const t = e.target.closest('[data-go]'); if(t) return go(t.dataset.go);
+  const b = e.target.closest('[data-ov]');
+  if(b){
+    if(b.dataset.ov === 'stop' && !await confirmBox('Остановить музыку, очистить очередь и выйти из канала?', {danger:true, ok:'Остановить'})) return;
+    return act(`/guilds/${b.dataset.gid}/player/${b.dataset.ov}`, {}, {btn:b});
+  }
+  const o = e.target.closest('[data-open]'); if(o) selectGuild(o.dataset.open);
+};
+
+function renderServer(){
+  const g = curGuild();
+  $('#srvEmpty').classList.toggle('hide', !!g);
+  $('#srvView').classList.toggle('hide', !g);
+  setTitle();
+  if(g) renderPlayer();
+}
+async function loadDetail(){
+  if(!S.gid) return;
+  const gid = S.gid;
+  try{
+    const d = await api('GET', '/guilds/' + gid, null, {quiet:true});
+    if(gid !== S.gid) return;
+    S.detail = d; renderDetail();
+  }catch(e){ if(e.status === 404 && gid === S.gid) $('#voiceList').innerHTML = '<div class="muted">Сервер недоступен</div>'; }
+}
+async function ensureDetail(){ if(S.gid && (!S.detail || S.detail.id != S.gid)) await loadDetail(); else renderChannelSelects(); }
+setInterval(() => { if(!document.hidden && ['server','sounds','fun'].includes(S.page)) loadDetail(); }, 6000);
+
+function fillSelect(sel, html, prefer){
+  const keep = sel.value;
+  sel.innerHTML = html;
+  for(const want of [keep, prefer]){
+    if(want && [...sel.options].some(o => o.value == want && !o.disabled)){ sel.value = want; return; }
+  }
+}
+const userTag = u => `<span class="tag" data-copy="${esc(u.id)}" title="Нажмите, чтобы скопировать ID">${u.username ? '@' + esc(u.username) + (u.discriminator ? '#' + esc(u.discriminator) : '') + ' · ' : ''}${esc(u.id)}</span>`;
+
+function renderDetail(){
+  const d = S.detail, p = curGuild()?.player;
+  $('#voiceNote').classList.toggle('hide', !d.voice_partial);
+  renderGuildInfo();
+  $('#voiceList').innerHTML = d.voice_channels.map(c => {
+    const here = p && p.channel_id == c.id;
+    const people = c.members.length
+      ? c.members.map(m => `<div>${m.bot ? '🤖' : '👤'} <b>${esc(m.name)}</b>${userTag(m)}</div>`).join('')
+      : `<span class="muted">${d.voice_partial ? 'никого из видимых' : 'пусто'}</span>`;
+    return `<div class="vc ${here ? 'here' : ''}"><div class="row"><b class="grow">🔊 ${esc(c.name)}</b>${c.members.length ? `<span class="pill">${c.members.length}</span>` : ''}${here ? '<span class="pill ok">бот здесь</span>' : ''}
+      ${here ? '' : `<button class="sm" data-full data-join="${esc(c.id)}" ${c.can_connect ? '' : 'disabled title="нет прав"'}>Зайти</button>`}</div>
+      <div class="people">${people}</div></div>`;
+  }).join('') || '<div class="muted">Нет голосовых каналов</div>';
+  fillSelect($('#targetChan'), d.voice_channels.map(c => `<option value="${esc(c.id)}" ${c.can_connect ? '' : 'disabled'}>🔊 ${esc(c.name)}${c.members.length ? ' (' + c.members.length + ')' : ''}</option>`).join(''), p?.channel_id);
+  fillSelect($('#chatChan'), d.text_channels.map(c => `<option value="${esc(c.id)}" ${c.can_send ? '' : 'disabled'}>${c.voice ? '🔊 ' : '#'}${esc(c.name)}${c.can_send ? '' : ' 🔒'}</option>`).join(''), p?.text_channel_id);
+  renderChannelSelects();
+  if(!S.chatTimer && S.page === 'server') loadChat(true);
+}
+function renderChannelSelects(){
+  const p = curGuild()?.player;
+  const voice = S.detail?.voice_channels || [], text = S.detail?.text_channels || [];
+  fillSelect($('#sbChan'), voice.map(c => `<option value="${esc(c.id)}">🔊 ${esc(c.name)}</option>`).join(''), p?.channel_id);
+  fillSelect($('#funChan'), text.map(c => `<option value="${esc(c.id)}" ${c.can_send ? '' : 'disabled'}>${c.voice ? '🔊 ' : '#'}${esc(c.name)}</option>`).join(''), $('#chatChan').value || p?.text_channel_id);
+  const name = curGuild()?.name || 'не выбран';
+  $('#sbGuild').textContent = name; $('#funGuild').textContent = name;
+}
+function renderGuildInfo(){
+  const i = S.detail?.info, el = $('#guildInfo');
+  if(!i){ el.classList.add('hide'); return; }
+  el.classList.remove('hide');
+  el.innerHTML = `<h2>О сервере</h2><div class="stack small">
+    <div class="row"><span class="pill">👥 ${esc(S.detail.members ?? '?')}</span><span class="pill"># ${i.text}</span><span class="pill">🔊 ${i.voice}</span><span class="pill">🎭 ролей ${i.roles}</span><span class="pill">😀 ${i.emojis}</span><span class="pill">💎 ${i.boosts} (ур. ${i.tier})</span></div>
+    <div>Создан <b>${fmtDate(i.created)}</b> · владелец ${userTag({id:i.owner_id})}</div>
+    <div>ID сервера ${userTag({id:S.detail.id})} · ник бота <b>${esc(i.nick || 'по умолчанию')}</b></div></div>`;
+}
+$('#voiceList').onclick = e => {
+  const b = e.target.closest('[data-join]');
+  if(b) act(`/guilds/${S.gid}/player/join`, {channel_id:b.dataset.join}, {ok:'Подключаюсь…', btn:b}).then(() => setTimeout(loadDetail, 800));
+};
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-copy]'); if(!el) return;
+  try{ await navigator.clipboard.writeText(el.dataset.copy); toast('Скопировано: ' + el.dataset.copy, 'info'); }catch{ toast(el.dataset.copy, 'info'); }
+});
+
+function applyPlayer(p){ const g = curGuild(); if(g){ g.player = p; S.snapAt = Date.now(); renderPlayer(); renderGuildList(); } }
+function renderPlayer(){
+  const g = curGuild(); if(!g || S.page !== 'server') return;
+  const p = g.player, c = p.current;
+  $('#npChan').textContent = p.connected ? `🔊 ${p.channel_name}${p.latency_ms != null ? ' · ' + p.latency_ms + ' мс' : ''}` : 'не в голосовом канале';
+  $('#npChan').className = 'pill ' + (p.connected ? 'ok' : '');
+  $('#npTitle').innerHTML = c ? (c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.title)}</a>` : esc(c.title)) : '<span class="muted">Ничего не играет</span>';
+  const pause = $('#btnPause');
+  if(!pause.classList.contains('loading')){
+    pause.textContent = p.paused ? '▶ Продолжить' : '⏸ Пауза';
+    pause.disabled = !c;
+  }
+  pause.dataset.act = p.paused ? 'resume' : 'pause';
+  if(document.activeElement !== $('#loopSel')) $('#loopSel').value = p.loop;
+  if(document.activeElement !== $('#vol')){ $('#vol').value = p.volume; $('#volVal').textContent = p.volume + '%'; }
+  tickBar();
+  $('#qInfo').textContent = `${p.queue_len} · ${fmtDur(p.queue_duration)}`;
+  const q = $('#queue'), sig = JSON.stringify(p.queue.map(t => t.title)) + p.queue_len;
+  if(q.dataset.sig !== sig && dragFrom === null){
+    q.dataset.sig = sig;
+    q.innerHTML = (p.queue.map((t, i) => `<div class="item" draggable="true" data-i="${i}"><span class="handle">⠿</span><span class="n">${i + 1}</span>
+      <span class="t" title="${esc(t.title)}">${esc(trackTitle(t))}</span><span class="muted small">${fmtDur(t.duration)}</span>
+      <span class="acts"><button class="sm" data-q="skipto" title="Играть сейчас">⏭</button><button class="sm" data-q="top" title="Следующим">⬆</button><button class="sm danger" data-q="rm" title="Убрать">✕</button></span></div>`).join('')
+      + (p.queue_len > p.queue.length ? `<div class="muted small" style="padding:6px">…и ещё ${p.queue_len - p.queue.length}</div>` : ''))
+      || '<div class="empty small">Очередь пуста</div>';
+  }
+}
+function tickBar(){
+  const p = curGuild()?.player, c = p?.current, bar = $('#npBar'), wrap = $('#npBarWrap');
+  if(!p || S.page !== 'server') return;
+  wrap.classList.toggle('live', !!(c && c.type === 'radio' && p.playing));
+  if(!c){ bar.style.width = '0'; $('#npMeta').textContent = p.queue_len ? `В очереди ${p.queue_len}` : '—'; return; }
+  const parts = [];
+  if(c.type === 'radio') parts.push('📻 прямой эфир');
+  else if(p.elapsed != null && c.duration){
+    const el = Math.min(c.duration, p.elapsed + (Date.now() - S.snapAt) / 1000);
+    bar.style.width = (el / c.duration * 100) + '%';
+    parts.push(`${fmtDur(el)} / ${fmtDur(c.duration)}`);
+  } else parts.push(fmtDur(c.duration));
+  if(p.paused) parts.push('⏸ пауза');
+  if(c.requester) parts.push('заказал: ' + c.requester);
+  $('#npMeta').textContent = parts.join(' · ');
+}
+setInterval(tickBar, 1000);
+
+$('#npCard').onclick = async e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  if(b.dataset.act === 'stop' && !await confirmBox('Остановить музыку, очистить очередь и выйти из канала?', {danger:true, ok:'Остановить'})) return;
+  act(`/guilds/${S.gid}/player/${b.dataset.act}`, {}, {btn:b});
+};
+$('#btnClearQ').onclick = async e => { if(await confirmBox('Очистить очередь? Текущий трек доиграет.', {ok:'Очистить', danger:true})) act(`/guilds/${S.gid}/player/clear`, {}, {btn:e.target, ok:'Очередь очищена'}); };
+$('#loopSel').onchange = e => act(`/guilds/${S.gid}/player/loop`, {mode:e.target.value});
+let volT;
+$('#vol').oninput = e => {
+  $('#volVal').textContent = e.target.value + '%';
+  clearTimeout(volT); volT = setTimeout(() => act(`/guilds/${S.gid}/player/volume`, {percent:+e.target.value}), 150);
+};
+$('#queue').onclick = e => {
+  const b = e.target.closest('[data-q]'); if(!b) return;
+  const i = +b.closest('[data-i]').dataset.i, base = `/guilds/${S.gid}/player/`;
+  if(b.dataset.q === 'skipto') act(base + 'skipto', {position:i + 1});
+  if(b.dataset.q === 'top') act(base + 'move', {src:i, dst:0});
+  if(b.dataset.q === 'rm') act(base + 'remove', {index:i});
+};
+let dragFrom = null;
+$('#queue').addEventListener('dragstart', e => { const it = e.target.closest('[data-i]'); if(!it) return; dragFrom = +it.dataset.i; it.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+$('#queue').addEventListener('dragend', () => { dragFrom = null; $$('#queue .item').forEach(i => i.classList.remove('dragging', 'over')); });
+$('#queue').addEventListener('dragover', e => { const it = e.target.closest('[data-i]'); if(!it || dragFrom === null) return; e.preventDefault(); $$('#queue .item.over').forEach(i => i.classList.remove('over')); it.classList.add('over'); });
+$('#queue').addEventListener('drop', e => {
+  const it = e.target.closest('[data-i]'); if(!it || dragFrom === null) return;
+  e.preventDefault();
+  const to = +it.dataset.i, from = dragFrom;
+  if(to !== from) act(`/guilds/${S.gid}/player/move`, {src:from, dst:to});
+});
+$('#btnSaveQueue').onclick = async e => {
+  const r = await modal({title:'Сохранить очередь в плейлист', fields:[{name:'name', label:'Название плейлиста', required:true, maxlength:80}], ok:'Сохранить'});
+  if(!r) return;
+  const d = await act(`/guilds/${S.gid}/queue/save`, {name:r.name}, {btn:e.target});
+  if(d){ toast(`Сохранено в «${d.playlist}»: ${d.added}`); loadPlaylists(); }
+};
+
+function playBody(extra){
+  const p = curGuild()?.player;
+  return Object.assign({
+    channel_id: p?.connected ? p.channel_id : $('#targetChan').value,
+    announce: $('#announce').checked, position: $('#playPos').value,
+    text_channel_id: $('#chatChan').value || undefined,
+  }, extra);
+}
+async function doPlay(){
+  const q = $('#playQuery').value.trim(); if(!q) return;
+  const r = await act(`/guilds/${S.gid}/player/play`, playBody({query:q, source:$('#playSource').value}), {btn:$('#btnPlay')});
+  if(r){ toast(r.started ? `▶ ${r.started}` : `Добавлено в очередь: ${r.added}`); $('#playQuery').value = ''; }
+}
+$('#btnPlay').onclick = doPlay;
+$('#playQuery').onkeydown = e => { if(e.key === 'Enter') doPlay(); };
+$('#btnPlayPl').onclick = async e => {
+  const id = $('#plSel').value; if(!id) return toast('Сначала создайте плейлист', 'err');
+  const r = await act(`/guilds/${S.gid}/player/playlist`, playBody({playlist_id:id, shuffle:$('#plShuffle').checked}), {btn:e.target});
+  if(r) toast(r.started ? `▶ ${r.started} (+${r.added - 1})` : `Добавлено: ${r.added}`);
+};
+$('#radios').onclick = async e => {
+  const c = e.target.closest('[data-radio]'); if(!c) return;
+  const r = await act(`/guilds/${S.gid}/player/radio`, playBody({station:c.dataset.radio}));
+  if(r) toast('📻 ' + c.textContent);
+};
+async function loadRadios(){
+  try{ S.radios = await api('GET', '/radios', null, {quiet:true}); }catch{ return; }
+  $('#radios').innerHTML = S.radios.map(r => `<span class="chip" data-radio="${esc(r.id)}">${esc(r.name)}</span>`).join('') || '<span class="muted small">—</span>';
+}
+
+async function loadChat(force){
+  clearTimeout(S.chatTimer); S.chatTimer = null;
+  if(S.page !== 'server' || !S.gid) return;
+  const ch = $('#chatChan').value;
+  if(ch && !document.hidden){
+    if(force) S.lastMsgSig = '';
+    try{
+      const msgs = await api('GET', `/channels/${ch}/messages?limit=50`, null, {quiet:true});
+      const sig = ch + ':' + msgs.map(m => m.id + (m.pinned ? 'p' : '') + m.content.length).join(',');
+      if(sig !== S.lastMsgSig && $('#chatChan').value === ch){
+        S.lastMsgSig = sig;
+        const box = $('#chat'), atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+        box.innerHTML = msgs.map(renderMsg).join('') || '<div class="empty small">Нет сообщений</div>';
+        if(atBottom || !box.dataset.init){ box.scrollTop = box.scrollHeight; box.dataset.init = '1'; }
+      }
+    }catch(e){ if(e.status) $('#chat').innerHTML = `<div class="empty small">${esc(e.message)}</div>`; }
+  }
+  S.chatTimer = setTimeout(loadChat, 4000);
+}
+function renderMsg(m){
+  const acts = `<span class="macts" data-full>
+    <button data-m="reply" title="Ответить">↩</button><button data-m="react" title="Реакция">😀</button>
+    <button data-m="${m.pinned ? 'unpin' : 'pin'}" title="${m.pinned ? 'Открепить' : 'Закрепить'}">${m.pinned ? '📍' : '📌'}</button>
+    ${m.self ? '<button data-m="edit" title="Изменить">✎</button>' : ''}<button data-m="del" title="Удалить">🗑</button></span>`;
+  const extra = (m.attachments.length ? ` <span class="muted">📎 ${esc(m.attachments.join(', '))}</span>` : '') + (m.embeds ? ' <span class="muted">[embed]</span>' : '');
+  return `<div class="msg ${m.self ? 'self' : ''}" data-id="${esc(m.id)}"><span class="au">${esc(m.author)}</span>${m.bot ? '<span class="badge">BOT</span>' : ''}${userTag({id:m.author_id, username:m.username, discriminator:m.discriminator})}<time>${fmtTime(m.time)}</time>${m.pinned ? ' 📌' : ''}
+    ${acts}<div class="body">${esc(m.content)}${extra}</div></div>`;
+}
+$('#chatChan').onchange = () => { $('#chat').dataset.init = ''; S.replyTo = null; renderReply(); loadChat(true); renderChannelSelects(); };
+$('#btnChatRefresh').onclick = () => loadChat(true);
+function renderReply(){
+  $('#replyBar').classList.toggle('hide', !S.replyTo);
+  if(S.replyTo) $('#replyText').textContent = `Ответ ${S.replyTo.author}: ${S.replyTo.text}`;
+}
+$('#replyCancel').onclick = () => { S.replyTo = null; renderReply(); };
+$('#chat').onclick = async e => {
+  const b = e.target.closest('[data-m]'); if(!b) return;
+  const msgEl = b.closest('.msg'), id = msgEl.dataset.id;
+  const body = {channel_id:$('#chatChan').value, message_id:id}, path = `/guilds/${S.gid}/chat/`;
+  const m = b.dataset.m;
+  if(m === 'reply'){ S.replyTo = {id, author:$('.au', msgEl).textContent, text:$('.body', msgEl).textContent.slice(0, 80)}; renderReply(); $('#chatText').focus(); return; }
+  if(m === 'react'){
+    const r = await modal({title:'Реакция', fields:[{name:'emoji', label:'Эмодзи (например 👍 или <:name:id>)', value:'👍', required:true}], ok:'Поставить'});
+    if(r) await act(path + 'react', {...body, emoji:r.emoji});
+  }
+  if(m === 'pin' || m === 'unpin') await act(path + m, body, {ok:m === 'pin' ? 'Закреплено' : 'Откреплено'});
+  if(m === 'edit'){
+    const r = await modal({title:'Изменить сообщение бота', fields:[{name:'content', label:'Текст', type:'textarea', value:$('.body', msgEl).textContent, required:true}], ok:'Сохранить'});
+    if(r) await act(path + 'edit', {...body, content:r.content});
+  }
+  if(m === 'del' && await confirmBox('Удалить это сообщение?', {danger:true, ok:'Удалить'})) await act(path + 'delete', body);
+  loadChat(true);
+};
+const FX = {
+  mock: t => [...t].map((c, i) => i % 2 ? c.toUpperCase() : c.toLowerCase()).join(''),
+  caps: t => t.toUpperCase(),
+  rev: t => [...t].reverse().join(''),
+  spaced: t => [...t].join(' '),
+  clap: t => t.split(/\s+/).join(' 👏 ') + ' 👏',
+};
+const QUICK = {
+  d6: () => `🎲 Бросаю кубик: **${1 + Math.floor(Math.random() * 6)}**`,
+  d20: () => `🎲 Бросаю d20: **${1 + Math.floor(Math.random() * 20)}**`,
+  coin: () => `🪙 Монетка: **${pick(['Орёл', 'Решка'])}**`,
+  ball: () => `🎱 Магический шар говорит: **${pick(['Бесспорно', 'Определённо да', 'Спроси позже', 'Даже не думай', 'Весьма сомнительно', 'Знаки говорят — да'])}**`,
+};
+async function massOk(box){
+  if(!box.checked) return true;
+  return confirmBox('Сообщение может уведомить всех участников сервера или роли. Отправить?', {ok:'Отправить', danger:true});
+}
+async function say(text){
+  let t = (text ?? $('#chatText').value).trim(); if(!t) return;
+  const fx = FX[$('#chatFx').value]; if(fx && text == null) t = fx(t);
+  if(!await massOk($('#chatMass'))) return;
+  const r = await act(`/guilds/${S.gid}/say`, {channel_id:$('#chatChan').value, content:t, allow_mentions:$('#chatMass').checked, reply_to:S.replyTo?.id}, {btn:$('#btnSay')});
+  $('#chatMass').checked = false;
+  if(r){ if(text == null) $('#chatText').value = ''; S.replyTo = null; renderReply(); loadChat(true); }
+  return r;
+}
+$('#btnSay').onclick = () => say();
+$('#chatText').onkeydown = e => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); say(); } };
+
+const favs = { get:() => store.get('gifs', []), set:v => store.set('gifs', v) };
+function renderFavs(){ $('#gifFavs').innerHTML = favs.get().map((u, i) => `<span class="chip" data-send="${i}" title="${esc(u)}">🎞 ${esc(u.replace(/^https?:\/\//, '').slice(0, 26))}<i data-del="${i}">✕</i></span>`).join(''); }
+async function sendGif(url){
+  url = (url || '').trim();
+  if(!isUrl(url)) return toast('Нужна ссылка, начинающаяся с http(s)://', 'err');
+  const caption = $('#chatText').value.trim();
+  const r = await say((caption ? caption + '\n' : '') + url);
+  if(r){ $('#chatText').value = ''; $('#gifUrl').value = ''; $('#gifPreview').classList.add('hide'); }
+}
+$('#gifSend').onclick = () => sendGif($('#gifUrl').value);
+$('#gifUrl').onkeydown = e => { if(e.key === 'Enter') sendGif($('#gifUrl').value); };
+$('#gifUrl').oninput = e => {
+  const u = e.target.value.trim(), img = $('#gifPreview');
+  const show = isUrl(u) && /\.(gif|webp|png|jpe?g)(\?|$)/i.test(u);
+  if(show) img.src = u;
+  img.classList.toggle('hide', !show);
+};
+$('#gifFav').onclick = () => {
+  const u = $('#gifUrl').value.trim(); if(!isUrl(u)) return toast('Сначала вставьте ссылку', 'err');
+  const list = favs.get(); if(!list.includes(u)){ list.push(u); favs.set(list); renderFavs(); toast('Добавлено в избранное'); }
+};
+$('#gifFavs').onclick = e => {
+  const list = favs.get();
+  if(e.target.dataset.del !== undefined){ list.splice(+e.target.dataset.del, 1); favs.set(list); renderFavs(); return; }
+  const chip = e.target.closest('[data-send]'); if(chip) sendGif(list[+chip.dataset.send]);
+};
+async function sendFile(file){
+  if(!file || !S.gid) return;
+  if(!await massOk($('#chatMass'))) return;
+  const fd = new FormData();
+  fd.append('channel_id', $('#chatChan').value);
+  fd.append('caption', $('#chatText').value.trim());
+  fd.append('allow_mentions', $('#chatMass').checked ? '1' : '0');
+  fd.append('file', file);
+  toast(`Отправка ${file.name}…`, 'info');
+  try{
+    await api('POST', `/guilds/${S.gid}/upload`, fd);
+    $('#chatText').value = ''; toast('Файл отправлен'); loadChat(true);
+  }catch{}
+  $('#chatMass').checked = false;
+}
+$('#chatFile').onchange = e => { sendFile(e.target.files[0]); e.target.value = ''; };
+const chatBox = $('#chat');
+['dragenter', 'dragover'].forEach(ev => chatBox.addEventListener(ev, e => { if(e.dataTransfer?.types.includes('Files')){ e.preventDefault(); chatBox.classList.add('over'); } }));
+['dragleave', 'drop'].forEach(ev => chatBox.addEventListener(ev, () => chatBox.classList.remove('over')));
+chatBox.addEventListener('drop', e => { if(e.dataTransfer?.files.length){ e.preventDefault(); sendFile(e.dataTransfer.files[0]); } });
+
+$('#page-server').addEventListener('click', async e => {
+  const q = e.target.closest('[data-quick]');
+  if(q){ $('#chatText').value = QUICK[q.dataset.quick](); $('#chatText').focus(); return; }
+  const t = e.target.closest('[data-tool]'); if(!t || !S.gid) return;
+  const ch = $('#chatChan').value, base = `/guilds/${S.gid}`;
+  if(t.dataset.tool === 'purge'){
+    const r = await modal({title:'Очистить сообщения', text:'Удаляются только сообщения младше 14 дней. Действие необратимо.', danger:true, ok:'Удалить', fields:[
+      {name:'limit', label:'Сколько последних сообщений проверить (1–100)', type:'number', value:10, min:1, max:100, required:true},
+      {name:'only_bot', label:'Только сообщения бота', type:'checkbox', value:true},
+    ]});
+    if(!r) return;
+    const d = await act(base + '/chat/purge', {channel_id:ch, limit:r.limit, only_bot:r.only_bot});
+    if(d) toast(`Удалено сообщений: ${d.deleted}`);
+    loadChat(true);
+  } else if(t.dataset.tool === 'slowmode'){
+    const r = await modal({title:'Медленный режим канала', ok:'Применить', fields:[{name:'seconds', label:'Интервал между сообщениями', type:'select', value:'0',
+      options:[[0,'Выключен'],[5,'5 секунд'],[10,'10 секунд'],[30,'30 секунд'],[60,'1 минута'],[300,'5 минут'],[900,'15 минут'],[3600,'1 час'],[21600,'6 часов']]}]});
+    if(r) act(base + '/chat/slowmode', {channel_id:ch, seconds:+r.seconds}, {ok:'Слоумод изменён'});
+  } else if(t.dataset.tool === 'nick'){
+    const r = await modal({title:'Ник бота на этом сервере', fields:[{name:'nick', label:'Ник (пусто — сбросить)', value:S.detail?.info?.nick || '', maxlength:32}], ok:'Сохранить'});
+    if(r && await act(base + '/nick', {nick:r.nick}, {ok:'Ник изменён'})) loadDetail();
+  }
+});
+
+async function loadPlaylists(){
+  try{ S.playlists = await api('GET', '/playlists', null, {quiet:true}); }catch{ return; }
+  fillSelect($('#plSel'), S.playlists.map(p => `<option value="${esc(p.id)}">${esc(p.name)} (${p.tracks.length})</option>`).join('') || '<option value="">— нет плейлистов —</option>');
+  renderPlaylists();
+}
+function renderPlaylists(){
+  $('#plList').innerHTML = S.playlists.map(p => `<div class="item" data-pl="${esc(p.id)}" style="cursor:pointer;${p.id === S.plSel ? 'background:var(--panel2)' : ''}"><span class="t">📜 ${esc(p.name)}</span><span class="pill">${p.tracks.length}</span></div>`).join('') || '<div class="empty small">Плейлистов пока нет</div>';
+  const p = S.playlists.find(x => x.id === S.plSel);
+  if(!p){ $('#plDetail').innerHTML = '<div class="empty">Выберите плейлист</div>'; return; }
+  const dur = p.tracks.reduce((s, t) => s + (t.duration || 0), 0);
+  $('#plDetail').innerHTML = `<h2>${esc(p.name)} <span class="pill">${p.tracks.length} · ${fmtDur(dur)}</span><span class="sp"></span>
+      <button class="sm" data-pla="rename" title="Переименовать">✎</button><button class="sm danger" data-pla="delete" title="Удалить">🗑</button></h2>
+    <div class="row" style="margin-bottom:10px"><input id="plAdd" class="grow" placeholder="Ссылка YouTube, плейлист, поиск, ya:запрос или радио-ссылка"><button class="primary" data-pla="add">Добавить</button></div>
+    <div class="row" style="margin-bottom:10px"><button data-pla="play" ${S.gid ? '' : 'disabled'}>▶ Запустить на «${esc(curGuild()?.name || 'сервер не выбран')}»</button><label class="cb"><input type="checkbox" id="plDetShuffle"> перемешать</label></div>
+    <div class="list scroll">${p.tracks.map((t, i) => `<div class="item"><span class="n">${i + 1}</span><span class="t" title="${esc(t.title)}">${esc(trackTitle(t))}</span><span class="muted small">${fmtDur(t.duration)}</span><span class="acts"><button class="sm danger" data-rm="${i}">✕</button></span></div>`).join('') || '<div class="empty small">Пусто — добавьте треки выше</div>'}</div>`;
+}
+$('#plList').onclick = e => { const el = e.target.closest('[data-pl]'); if(el){ S.plSel = el.dataset.pl; renderPlaylists(); } };
+async function createPlaylist(){
+  const n = $('#newPl').value.trim(); if(!n) return;
+  try{ const p = await api('POST', '/playlists', {name:n}); $('#newPl').value = ''; S.plSel = p.id; loadPlaylists(); }catch{}
+}
+$('#btnNewPl').onclick = createPlaylist;
+$('#newPl').onkeydown = e => { if(e.key === 'Enter') createPlaylist(); };
+$('#plDetail').onclick = async e => {
+  const id = S.plSel, b = e.target.closest('[data-pla],[data-rm]'); if(!b) return;
+  const p = S.playlists.find(x => x.id === id);
+  if(b.dataset.rm !== undefined){ try{ await api('DELETE', `/playlists/${id}/tracks/${b.dataset.rm}`); }catch{} return loadPlaylists(); }
+  const a = b.dataset.pla;
+  if(a === 'add'){
+    const q = $('#plAdd').value.trim(); if(!q) return;
+    busy(b, true);
+    try{ const r = await api('POST', `/playlists/${id}/tracks`, {query:q}); toast(`Добавлено: ${r.added}`); }catch{}
+    busy(b, false); loadPlaylists();
+  } else if(a === 'rename'){
+    const r = await modal({title:'Переименовать плейлист', fields:[{name:'name', label:'Название', value:p.name, required:true, maxlength:80}], ok:'Сохранить'});
+    if(r){ try{ await api('PATCH', '/playlists/' + id, {name:r.name}); }catch{} loadPlaylists(); }
+  } else if(a === 'delete'){
+    if(await confirmBox(`Удалить плейлист «${p.name}»?`, {danger:true, ok:'Удалить'})){ try{ await api('DELETE', '/playlists/' + id); S.plSel = null; }catch{} loadPlaylists(); }
+  } else if(a === 'play'){
+    await ensureDetail();
+    const r = await act(`/guilds/${S.gid}/player/playlist`, playBody({playlist_id:id, shuffle:$('#plDetShuffle').checked}), {btn:b});
+    if(r) toast(`▶ ${curGuild()?.name}: ${r.started || 'добавлено ' + r.added}`);
+  }
+};
+$('#plDetail').onkeydown = e => { if(e.target.id === 'plAdd' && e.key === 'Enter') $('[data-pla=add]').click(); };
+
+async function loadSounds(){
+  try{ S.sounds = await api('GET', '/sounds', null, {quiet:true}); }catch{ return; }
+  renderSounds();
+}
+function visibleSounds(){
+  const f = $('#sbSearch').value.trim().toLowerCase();
+  return S.sounds.filter(s => !f || s.name.toLowerCase().includes(f));
+}
+function renderSounds(){
+  const list = visibleSounds();
+  $('#sbGrid').innerHTML = list.map((s, i) => `<div class="sound" data-id="${esc(s.id)}">${i < 9 ? `<span class="kbd">${i + 1}</span>` : ''}
+    <button class="play" data-play><span class="em">${esc(s.emoji)}</span><b>${esc(s.name)}</b><span class="muted small">${fmtDur(s.duration)}${s.volume !== 100 ? ' · ' + s.volume + '%' : ''}</span></button>
+    <div class="tacts"><button data-prev title="Послушать у себя">🎧</button><button data-edit title="Изменить">✎</button><button class="danger" data-del title="Удалить">✕</button></div></div>`).join('')
+    || `<div class="empty" style="grid-column:1/-1">${S.sounds.length ? 'Ничего не найдено' : 'Звуков пока нет — загрузите файлы ниже'}</div>`;
+}
+$('#sbSearch').oninput = renderSounds;
+async function playSound(s){
+  if(!S.gid) return toast('Выберите сервер слева', 'err');
+  const p = curGuild()?.player;
+  const channel = p?.connected ? p.channel_id : $('#sbChan').value;
+  if(!channel) return toast('Выберите голосовой канал', 'err');
+  const tile = $(`.sound[data-id="${CSS.escape(s.id)}"]`);
+  tile?.classList.add('flash'); setTimeout(() => tile?.classList.remove('flash'), 600);
+  const r = await act(`/guilds/${S.gid}/sound/play`, {sound_id:s.id, channel_id:channel, volume:Math.round(s.volume * $('#sbVol').value / 100), leave_after:$('#sbLeave').checked});
+  if(r) toast(`${s.emoji} ${s.name}`);
+}
+const randomSound = () => { if(S.sounds.length) playSound(pick(S.sounds)); else toast('Звуков пока нет', 'err'); };
+let previewAudio;
+$('#sbGrid').onclick = async e => {
+  const tile = e.target.closest('.sound'); if(!tile) return;
+  const s = S.sounds.find(x => x.id === tile.dataset.id); if(!s) return;
+  if(e.target.closest('[data-play]')) return playSound(s);
+  if(e.target.closest('[data-prev]')){ previewAudio?.pause(); previewAudio = new Audio('/api/sounds/' + s.id + '/file'); previewAudio.play().catch(() => toast('Не удалось воспроизвести', 'err')); return; }
+  if(e.target.closest('[data-edit]')){
+    const r = await modal({title:'Звук «' + s.name + '»', ok:'Сохранить', fields:[
+      {name:'name', label:'Название', value:s.name, required:true, maxlength:60},
+      {name:'emoji', label:'Эмодзи', value:s.emoji, maxlength:8},
+      {name:'volume', label:'Громкость, % (0–200)', type:'number', value:s.volume, min:0, max:200},
+    ]});
+    if(r){ try{ await api('PATCH', '/sounds/' + s.id, r); }catch{} loadSounds(); }
+    return;
+  }
+  if(e.target.closest('[data-del]') && await confirmBox(`Удалить звук «${s.name}» с хоста?`, {danger:true, ok:'Удалить'})){ try{ await api('DELETE', '/sounds/' + s.id); }catch{} loadSounds(); }
+};
+$('#sbRandom').onclick = randomSound;
+$('#sbStop').onclick = () => S.gid && act(`/guilds/${S.gid}/sound/stop`, {}, {ok:'Звуки заглушены'});
+async function uploadFiles(files){
+  files = [...files]; if(!files.length) return;
+  const info = $('#sbUpInfo'); let done = 0;
+  for(const [i, f] of files.entries()){
+    info.textContent = `Загрузка ${i + 1}/${files.length}: ${f.name}…`;
+    const fd = new FormData();
+    fd.append('file', f);
+    if(files.length === 1 && $('#sbName').value.trim()) fd.append('name', $('#sbName').value.trim());
+    fd.append('emoji', $('#sbEmoji').value.trim());
+    fd.append('volume', $('#sbDefVol').value || 100);
+    try{ await api('POST', '/sounds', fd); done++; }catch{}
+  }
+  info.textContent = `Загружено: ${done} из ${files.length}`;
+  if(done){ toast(`Загружено звуков: ${done}`); $('#sbName').value = ''; }
+  $('#sbFile').value = '';
+  loadSounds();
+}
+$('#sbFile').onchange = e => uploadFiles(e.target.files);
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => uploadFiles(e.dataTransfer.files));
+
+const funBody = extra => Object.assign({channel_id:$('#funChan').value, allow_mentions:$('#funMass').checked}, extra);
+async function funAct(action, body, opts={}){
+  if(!S.gid) return toast('Выберите сервер слева', 'err');
+  if(['typewriter', 'schedule'].includes(action) && !await massOk($('#funMass'))) return;
+  const r = await act(`/guilds/${S.gid}/chat/${action}`, funBody(body), opts);
+  $('#funMass').checked = false;
+  return r;
+}
+function renderEmbedPreview(){
+  const t = $('#emTitle').value, x = $('#emText').value, img = $('#emImage').value.trim();
+  const box = $('#emPrev');
+  box.style.borderLeftColor = $('#emColor').value;
+  box.innerHTML = (t ? `<b>${esc(t)}</b>` : '') + (esc(x) || '<span class="muted">Предпросмотр объявления</span>') + (isUrl(img) ? `<img src="${esc(img)}" alt="">` : '');
+}
+['emTitle', 'emText', 'emImage', 'emColor'].forEach(id => $('#' + id).addEventListener('input', renderEmbedPreview));
+$('#emSend').onclick = async e => {
+  if(await funAct('embed', {title:$('#emTitle').value, text:$('#emText').value, color:$('#emColor').value, image:$('#emImage').value}, {ok:'Объявление отправлено', btn:e.target})){
+    $('#emText').value = ''; renderEmbedPreview();
+  }
+};
+$('#pollSend').onclick = async e => {
+  const opts = $('#pollOpts').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if(await funAct('poll', {question:$('#pollQ').value, options:opts, hours:+$('#pollH').value, multiple:$('#pollMulti').checked}, {ok:'Опрос создан', btn:e.target})){
+    $('#pollQ').value = ''; $('#pollOpts').value = '';
+  }
+};
+$('#twTyping').onclick = e => funAct('typing', {seconds:8}, {ok:'Бот «печатает»…', btn:e.target});
+$('#twGo').onclick = async e => { if(await funAct('typewriter', {content:$('#twText').value}, {ok:'Печатаю…', btn:e.target})) $('#twText').value = ''; };
+$('#schGo').onclick = async e => {
+  if(await funAct('schedule', {content:$('#schText').value, delay:+$('#schN').value * +$('#schU').value}, {ok:'Запланировано', btn:e.target})){
+    $('#schText').value = ''; loadScheduled();
+  }
+};
+async function loadScheduled(){
+  try{
+    const list = await api('GET', '/scheduled', null, {quiet:true});
+    $('#schList').innerHTML = list.sort((a, b) => a.at - b.at).map(s => `<div class="item"><span class="t small">⏰ ${fmtTime(s.at)} · #${esc(s.channel)}: ${esc(s.content)}</span><button class="sm danger" data-cancel="${esc(s.id)}">Отменить</button></div>`).join('') || '<div class="muted small">Запланированных сообщений нет</div>';
+  }catch{}
+}
+$('#schList').onclick = async e => { const id = e.target.dataset.cancel; if(id){ try{ await api('DELETE', '/scheduled/' + id); }catch{} loadScheduled(); } };
+setInterval(() => { if(S.page === 'fun' && !document.hidden) loadScheduled(); }, 5000);
+
+function fillFeedGuilds(){
+  const sel = $('#feedGuild'), keep = sel.value;
+  const html = '<option value="">Все серверы</option>' + S.snap.guilds.map(g => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('');
+  if(sel.dataset.sig !== html){ sel.dataset.sig = html; sel.innerHTML = html; sel.value = keep; }
+}
+function renderFeed(){
+  const names = Object.fromEntries((S.snap?.guilds || []).map(g => [g.id, g.name]));
+  const kind = $('#feedKind').value, gid = $('#feedGuild').value, q = $('#feedSearch').value.trim().toLowerCase();
+  const list = S.events.filter(e => (!kind || e.kind === kind || (kind === 'track' && e.kind === 'player')) && (!gid || e.guild_id == gid) && (!q || e.text.toLowerCase().includes(q)));
+  $('#feed').innerHTML = list.slice().reverse().map(e => `<div class="ev"><time>${fmtTime(e.time)}</time><span class="k k-${esc(e.kind)}">${esc(e.kind)}</span><span class="grow">${e.guild_id ? `<span class="muted">[${esc(names[e.guild_id] || e.guild_id)}]</span> ` : ''}${esc(e.text)}</span></div>`).join('') || '<div class="empty">Событий нет</div>';
+}
+['feedKind', 'feedGuild', 'feedSearch'].forEach(id => $('#' + id).addEventListener('input', renderFeed));
+
+const ADMIN = [
+  ['sync', '🔄 Синхронизировать команды', 'Обновить слэш-команды в Discord'],
+  ['reload', '♻ Перезагрузить модули', 'Подхватить новый код без перезапуска'],
+  ['leave_all', '👋 Выйти из всех каналов', 'Остановить музыку везде'],
+  ['reset', '🧯 Сбросить плеер сервера', 'Для выбранного сервера, если плеер завис'],
+  ['ffmpeg', '🎬 Проверить ffmpeg', 'Путь и версия'],
+  ['cookies', '🍪 Проверить cookies', 'Файл cookies для YouTube'],
+  ['radiocheck', '📻 Проверить радио', 'Доступность станций'],
+  ['update_ytdlp', '⬆ Обновить yt-dlp', 'После обновления нужен перезапуск'],
+  ['clear_errors', '🧹 Очистить ошибки', 'Буфер последних ошибок'],
+  ['restart', '🔁 Перезапустить бота', 'Музыка остановится', true],
+  ['shutdown', '⛔ Выключить бота', 'Включить удалённо будет нельзя', true],
+];
+$('#adminActions').innerHTML = ADMIN.map(([id, l, d, danger]) => `<button data-adm="${id}" class="${danger ? 'danger' : ''}">${l}<small>${d}</small></button>`).join('');
+async function adminRun(id, body, btn){
+  const out = $('#adminOut'); out.classList.remove('hide'); out.textContent = '…';
+  busy(btn, true);
+  try{ const r = await api('POST', '/admin/' + id, body || {}); out.textContent = r.message || '✅ Готово'; if(id === 'clear_errors') loadErrors(); }
+  catch(e){ out.textContent = '❌ ' + e.message; }
+  finally{ busy(btn, false); }
+}
+$('#adminActions').onclick = async e => {
+  const b = e.target.closest('[data-adm]'); if(!b) return;
+  const id = b.dataset.adm;
+  if(id === 'restart' && !await confirmBox('Перезапустить бота? Музыка на всех серверах остановится.', {danger:true, ok:'Перезапустить'})) return;
+  if(id === 'shutdown' && !await confirmBox('Выключить бота? Включить его удалённо через панель будет нельзя.', {danger:true, ok:'Выключить'})) return;
+  if(id === 'reset' && !S.gid) return toast('Сначала выберите сервер', 'err');
+  if(id === 'leave_all' && !await confirmBox('Выйти из всех голосовых каналов и очистить очереди?', {danger:true, ok:'Выйти'})) return;
+  adminRun(id, id === 'reset' ? {guild_id:S.gid} : {}, b);
+};
+$('#btnPres').onclick = e => adminRun('presence', {text:$('#presText').value, type:$('#presType').value, status:$('#presStatus').value}, e.target);
+$('#btnTest').onclick = e => { const q = $('#testQuery').value.trim(); if(q) adminRun('test', {query:q}, e.target); };
+async function loadErrors(){
+  try{
+    const errs = await api('GET', '/errors', null, {quiet:true});
+    $('#errCount').textContent = errs.length;
+    $('#errors').innerHTML = errs.map(e => `<details style="margin-bottom:6px"><summary><b>#${e.id}</b> <span class="muted">${fmtTime(e.time)}</span> ${esc(e.context)} — <span class="muted">${esc(e.trace.trim().split('\n').pop().slice(0, 120))}</span></summary><pre>${esc(e.trace)}</pre></details>`).join('') || '<div class="empty small">✅ Ошибок нет</div>';
+  }catch{}
+}
+$('#btnErrRefresh').onclick = loadErrors;
+let logLines = [];
+async function loadLogs(){
+  try{ logLines = (await api('GET', '/logs?n=500', null, {quiet:true})).lines; renderLogs(); }catch{}
+}
+function renderLogs(){
+  const lvl = $('#logLevel').value, f = $('#logFilter').value.trim().toLowerCase();
+  const levels = lvl === 'ERROR' ? ['[ERROR]', '[CRITICAL]'] : lvl === 'WARNING' ? ['[WARNING]', '[ERROR]', '[CRITICAL]'] : null;
+  const pre = $('#logs'), atBottom = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 40;
+  const lines = logLines.filter(l => (!levels || levels.some(x => l.includes(x))) && (!f || l.toLowerCase().includes(f)));
+  pre.textContent = lines.join('\n') || '(пусто)';
+  if(atBottom || !pre.dataset.init){ pre.scrollTop = pre.scrollHeight; pre.dataset.init = '1'; }
+}
+function startLogAuto(){ clearInterval(S.logTimer); loadLogs(); S.logTimer = setInterval(() => { if(!document.hidden) loadLogs(); }, 5000); }
+$('#btnLogs').onclick = loadLogs;
+$('#logAuto').onchange = e => { if(e.target.checked) startLogAuto(); else clearInterval(S.logTimer); };
+['logLevel', 'logFilter'].forEach(id => $('#' + id).addEventListener('input', renderLogs));
+async function loadCommands(){ if(!S.cmd){ try{ S.cmd = await api('GET', '/commands', null, {quiet:true}); }catch{ return; } } renderCmds(); }
+function renderCmds(){
+  const f = $('#cmdFilter').value.toLowerCase();
+  const ok = c => !f || (c.name + ' ' + (c.description || '')).toLowerCase().includes(f);
+  const pre = S.cmd.prefix.filter(ok).map(c => `<div class="cmd"><code>${esc(c.usage)}</code><div class="muted small">${esc(c.description)}</div></div>`).join('');
+  const sl = S.cmd.slash.filter(ok).map(c => `<div class="cmd"><code>/${esc(c.name)} ${c.params.map(p => '&lt;' + esc(p) + '&gt;').join(' ')}</code><div class="muted small">${esc(c.description)}</div></div>`).join('');
+  $('#cmds').innerHTML = `<div class="muted small" style="margin:4px 0">Админ-команды в Discord (только владелец)</div>${pre || '—'}<div class="muted small" style="margin:14px 0 4px">Слэш-команды пользователей</div>${sl || '—'}`;
+}
+$('#cmdFilter').oninput = () => S.cmd && renderCmds();
+
+function paletteItems(){
+  const items = Object.entries(PAGES).filter(([p]) => pageAllowed(p)).map(([p, l]) => ({label:'Открыть: ' + l, hint:'страница', run:() => go(p)}));
+  (S.snap?.guilds || []).forEach(g => items.push({label:'Сервер: ' + g.name, hint:g.player.connected ? '🔊 ' + (g.player.channel_name || '') : '', run:() => selectGuild(g.id)}));
+  if(S.gid && !isRO()){
+    const base = `/guilds/${S.gid}/player/`, p = curGuild()?.player, name = curGuild()?.name;
+    items.push({label:p?.paused ? 'Плеер: продолжить' : 'Плеер: пауза', hint:name, run:() => act(base + (p?.paused ? 'resume' : 'pause'), {})});
+    items.push({label:'Плеер: следующий трек', hint:name, run:() => act(base + 'skip', {})});
+    items.push({label:'Плеер: перемешать очередь', hint:name, run:() => act(base + 'shuffle', {}, {ok:'Перемешано'})});
+    items.push({label:'Саундборд: случайный звук', hint:name, run:async () => { if(!S.sounds.length) await loadSounds(); await ensureDetail(); randomSound(); }});
+  }
+  items.push({label:'Сменить тему', hint:'вид', run:toggleTheme});
+  return items;
+}
+let palItems = [], palIdx = 0;
+function openPalette(){ $('#palette').classList.remove('hide'); $('#palInput').value = ''; palIdx = 0; renderPalette(); $('#palInput').focus(); }
+function closePalette(){ $('#palette').classList.add('hide'); }
+function renderPalette(){
+  const q = $('#palInput').value.trim().toLowerCase();
+  palItems = paletteItems().filter(i => !q || (i.label + ' ' + (i.hint || '')).toLowerCase().includes(q)).slice(0, 40);
+  palIdx = Math.min(palIdx, Math.max(0, palItems.length - 1));
+  $('#palRes').innerHTML = palItems.map((i, n) => `<div data-n="${n}" class="${n === palIdx ? 'on' : ''}">${esc(i.label)}<small>${esc(i.hint || '')}</small></div>`).join('') || '<div class="muted">Ничего не найдено</div>';
+  $('#palRes .on')?.scrollIntoView({block:'nearest'});
+}
+function runPalette(n){ const it = palItems[n]; closePalette(); it?.run(); }
+$('#palInput').oninput = () => { palIdx = 0; renderPalette(); };
+$('#palInput').onkeydown = e => {
+  if(e.key === 'ArrowDown'){ e.preventDefault(); palIdx = Math.min(palIdx + 1, palItems.length - 1); renderPalette(); }
+  else if(e.key === 'ArrowUp'){ e.preventDefault(); palIdx = Math.max(palIdx - 1, 0); renderPalette(); }
+  else if(e.key === 'Enter'){ e.preventDefault(); runPalette(palIdx); }
+  else if(e.key === 'Escape') closePalette();
+};
+$('#palRes').onclick = e => { const d = e.target.closest('[data-n]'); if(d) runPalette(+d.dataset.n); };
+$('#palette').onclick = e => { if(e.target.id === 'palette') closePalette(); };
+$('#btnPalette').onclick = openPalette;
+document.addEventListener('keydown', e => {
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); $('#palette').classList.contains('hide') ? openPalette() : closePalette(); return; }
+  if(e.key === 'Escape'){ closePalette(); document.body.classList.remove('menu'); }
+  if(S.page === 'sounds' && /^[1-9]$/.test(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey && !e.target.matches('input,textarea,select') && !$('#dlg').open){
+    const s = visibleSounds()[+e.key - 1]; if(s) playSound(s);
+  }
+});
+document.addEventListener('visibilitychange', () => { if(!document.hidden && S.page === 'server') loadChat(); });
+
+(async () => {
+  renderFavs();
+  try{ S.me = await api('GET', '/me', null, {quiet:true}); }catch{}
+  document.body.classList.toggle('guest', S.me.role === 'guest');
+  connect();
+  go(location.hash.slice(1) || store.get('page', 'overview'));
+  await Promise.all([loadRadios(), loadPlaylists()]);
+  try{ S.events = await api('GET', '/events', null, {quiet:true}); }catch{}
+})();
+</script>
+</body>
+</html>

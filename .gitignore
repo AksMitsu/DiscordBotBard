@@ -1,0 +1,7 @@
+__pycache__/
+.env
+cookies.txt
+bot.log*
+data/
+MASTER_KEY.txt
+admin_ui/.env
